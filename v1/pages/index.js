@@ -330,7 +330,7 @@ class Home extends Component {
     super ();
 
     this.state = {
-      sidebarVisible: false,
+      sidebarVisible: false, 
       resolution: "2048x1024"
     }
   }
