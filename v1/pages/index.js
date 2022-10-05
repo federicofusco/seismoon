@@ -9,7 +9,6 @@ import SplashScreen from "../components/nav/SplashScreen";
 
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-import { PlaneGeometry } from "three";
 
 let renderer, scene, camera, editorCamera, domEvents;
 let xMoon, xSkybox;
@@ -40,7 +39,7 @@ const _createMoon = function ( radius, resolution ) {
   return new Promise ( ( resolve, _ ) => {
 
     // Creates geometry
-    let geometry = new THREE.SphereGeometry ( radius, 7, 7 );
+    let geometry = new THREE.SphereGeometry ( radius, 64, 64 );
 
     // Loads the material
     _createMaterial ( resolution )
@@ -116,28 +115,26 @@ const _positionOnSphere = function ( latitude, longitude, mesh ) {
 const _createMaterial = function ( resolution ) {
   return new Promise ( ( resolve, _ ) => {
 
-    resolve ( new THREE.MeshNormalMaterial () );
+    // Creates material
+    const textureLoader = new THREE.TextureLoader ();
+    textureLoader.load ( `resources/moon/texture/${ resolution }.jpg`, moonTexture => {
 
-    // // Creates material
-    // const textureLoader = new THREE.TextureLoader ();
-    // textureLoader.load ( `resources/moon/texture/${ resolution }.jpg`, moonTexture => {
+      // Loads the displacement map
+      textureLoader.load ( `resources/moon/bump/${ resolution }.jpg`, displacementTexture => {
 
-    //   // Loads the displacement map
-    //   textureLoader.load ( `resources/moon/bump/${ resolution }.jpg`, displacementTexture => {
+        // Render the texture as an equirectangular image
+        moonTexture.mapping = THREE.EquirectangularReflectionMapping;
 
-    //     // Render the texture as an equirectangular image
-    //     moonTexture.mapping = THREE.EquirectangularReflectionMapping;
+        // Creates the material
+        let material = new THREE.MeshPhongMaterial ({
+          map: moonTexture,
+          bumpMap: displacementTexture
+        });
 
-    //     // Creates the material
-    //     let material = new THREE.MeshPhongMaterial ({
-    //       map: moonTexture,
-    //       bumpMap: displacementTexture
-    //     });
+        resolve ( material );
 
-    //     resolve ( material );
-
-    //   }, undefined, () => alert ( "Failed to load displacement textures!" ) ); 
-    // }, undefined, () => alert ( "Failed to load textures!" ) );
+      }, undefined, () => alert ( "Failed to load displacement textures!" ) ); 
+    }, undefined, () => alert ( "Failed to load textures!" ) );
 
   }); 
 }
@@ -205,13 +202,13 @@ const parseRawLocation = function ( raw ) {
         units: split[x + 13],
         rate: split[x + 14],
         start: split[x + 15],
-        end: split[x + 16],
+        end: split[x + 16], 
     }
 }
 
 // Fetches the moonquake event data
 const _fetchMoonquakeEvents = function () {
-  useCsv ().processCsv ( "http://192.168.69.141:3000/resources/gagnepian_2006_catalog.csv" )
+  useCsv ().processCsv ( "http://seismoon-v1.vercel.app/resources/gagnepian_2006_catalog.csv" )
     .then ( result => {
 
       // Fetches station locations
@@ -248,43 +245,10 @@ const _fetchMoonquakeEvents = function () {
     });
 }
 
-const _loadFont = () => {
-  return new Promise ( ( resolve, _ ) => {
-    const loader = new FontLoader ();
-    loader.load ( "/resources/fonts/font.typeface.json", font => resolve ( font ), null, error => console.error ( error ) );
-  });
-}
-
-const _createText = text => {
-  return new Promise ( ( resolve, reject ) => {
-    _loadFont ()
-      .then ( font => {
-
-        // Creates the geometry
-        let geometry = new TextGeometry ( text, {
-          font: font,
-          size: 0.3,
-          height: 0.03,
-          curveSegments: 3,
-          bevelEnabled: false,
-          bevelThickness: 2,
-          bevelSize: 2,
-          bevelOffset: 0,
-          bevelSegments: 3
-        });
-
-        // Creates the material
-        let material = new THREE.MeshBasicMaterial ();
-
-        resolve ( new THREE.Mesh ( geometry, material ) );
-      })
-    });
-}
-
 const _initScene = resolution => {
   _addResizeListener ();
   _createLighting ();
-  // _createSkybox ( resolution );
+  _createSkybox ( resolution );
   _createMoon ( 5, resolution )
     .then ( moon => {
 
@@ -299,23 +263,10 @@ const _initScene = resolution => {
               return;
 
             // Creates new sphere
-            let pointerObject = new THREE.Object3D ();
-            
             let pointer = new THREE.Mesh ( stationGeometry, stationMaterial );
-            pointerObject.add ( pointer );
-
-            _createText ( location.stationName )  
-              .then ( text => {
-                // text.position.add ( new THREE.Vector3 ( 2, 2, 2 ) )
-                pointerObject.add ( text );
-              });
-
-            // _createText ( location.stationName )
-            //   .then ( text => pointerObject.add ( text ) );
-
-            _positionOnSphere ( location.lat, location.long, pointerObject );
-            scene.add ( pointerObject );
-            xStation.push ( pointerObject );
+            _positionOnSphere ( location.lat, location.long, pointer );
+            scene.add ( pointer );
+            xStation.push ( pointer );
           });
         });
 
@@ -394,7 +345,7 @@ class Home extends Component {
   render () {
     return (
       <>
-        {/* <SplashScreen /> */}
+        <SplashScreen />
         <Sidebar 
           visible={ this.state.sidebarVisible } 
           toggleSidebar={ this.toggleSidebar } 
